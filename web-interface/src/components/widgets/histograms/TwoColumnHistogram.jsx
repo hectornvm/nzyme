@@ -11,6 +11,7 @@ import HistogramValue from "./HistogramValue";
 import Store from "../../../util/Store";
 import FilterValueIcon from "../../shared/filtering/FilterValueIcon";
 import {L4_SESSIONS_FILTER_FIELDS} from "../../ethernet/l4/L4SessionFilterFields";
+import ColumnSorting from "../../shared/ColumnSorting";
 
 function TwoColumnHistogram(props) {
 
@@ -21,6 +22,11 @@ function TwoColumnHistogram(props) {
   const setLimit = props.setLimit;
 
   const columnFilterElements = props.columnFilterElements ? props.columnFilterElements : [];
+
+  const orderColumn = props.orderColumn;
+  const setOrderColumn = props.setOrderColumn;
+  const orderDirection = props.orderDirection;
+  const setOrderDirection = props.setOrderDirection;
 
   const [mode, setMode] = useState(MODE_TABLE);
 
@@ -63,6 +69,18 @@ function TwoColumnHistogram(props) {
                             fields={element.fields}
                             field={element.field}
                             value={value.value} />
+  }
+
+  const orderElement = (column) => {
+    if (!orderColumn || !setOrderColumn || !orderDirection || !setOrderDirection) {
+      return null;
+    }
+
+    return <ColumnSorting thisColumn={column}
+                          orderColumn={orderColumn}
+                          setOrderColumn={setOrderColumn}
+                          orderDirection={orderDirection}
+                          setOrderDirection={setOrderDirection} />
   }
 
   const formatExport = () => {
@@ -128,8 +146,8 @@ function TwoColumnHistogram(props) {
             <thead>
             <tr>
               <th>#</th>
-              <th>{columnTitles[0]}</th>
-              <th>{columnTitles[1]}</th>
+              <th>{columnTitles[0]} {orderElement("key")}</th>
+              <th>{columnTitles[1]} {orderElement("value")}</th>
             </tr>
             </thead>
             <tbody>

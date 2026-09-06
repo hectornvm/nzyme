@@ -17,10 +17,13 @@ export default function BluetoothDeviceOuisHistogram({timeRange, filters, setFil
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [histogram, setHistogram] = useState(null);
 
+  const [orderColumn, setOrderColumn] = useState("value");
+  const [orderDirection, setOrderDirection] = useState("DESC");
+
   useEffect(() => {
     setHistogram(null);
-    bluetoothService.getDeviceOuisHistogram(setHistogram, timeRange, limit, 0, filters, selectedTaps);
-  }, [selectedTaps, limit, timeRange, filters, revision]);
+    bluetoothService.getDeviceOuisHistogram(setHistogram, timeRange, orderColumn, orderDirection, limit, 0, filters, selectedTaps);
+  }, [selectedTaps, limit, timeRange, filters, orderColumn, orderDirection, revision]);
 
   if (!histogram) {
     return <LoadingSpinner />
@@ -40,6 +43,10 @@ export default function BluetoothDeviceOuisHistogram({timeRange, filters, setFil
                                {field: "ouis", fields: BLUETOOTH_DEVICES_FILTER_FIELDS, setFilters: setFilters},
                                null, null
                              ]}
+                             orderColumn={orderColumn}
+                             setOrderColumn={setOrderColumn}
+                             orderDirection={orderDirection}
+                             setOrderDirection={setOrderDirection}
                              limit={limit}
                              setLimit={setLimit} />
 

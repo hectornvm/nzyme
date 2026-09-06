@@ -7,6 +7,7 @@ import app.nzyme.core.bluetooth.sig.BluetoothDeviceClass;
 import app.nzyme.core.context.db.MacAddressContextEntry;
 import app.nzyme.core.database.OrderDirection;
 import app.nzyme.core.database.generic.StringNumberAggregationResult;
+import app.nzyme.core.database.generic.TwoColumnHistogramOrderColumn;
 import app.nzyme.core.rest.RestTools;
 import app.nzyme.core.rest.TapDataHandlingResource;
 import app.nzyme.core.rest.authentication.AuthenticatedUser;
@@ -116,17 +117,30 @@ public class BluetoothDevicesResource extends TapDataHandlingResource {
                                            @QueryParam("time_range") @Valid String timeRangeParameter,
                                            @QueryParam("filters") String filtersParameter,
                                            @QueryParam("taps") String taps,
+                                           @QueryParam("order_column") @Nullable String orderColumnParam,
+                                           @QueryParam("order_direction") @Nullable String orderDirectionParam,
                                            @QueryParam("limit") int limit,
                                            @QueryParam("offset") int offset) {
         List<UUID> tapUUIDs = parseAndValidateTapIds(getAuthenticatedUser(sc), nzyme, taps);
         TimeRange timeRange = parseTimeRangeQueryParameter(timeRangeParameter);
         Filters filters = parseFiltersQueryParameter(filtersParameter);
 
+        TwoColumnHistogramOrderColumn orderColumn = TwoColumnHistogramOrderColumn.VALUE;
+        OrderDirection orderDirection = OrderDirection.DESC;
+        if (orderColumnParam != null && orderDirectionParam != null) {
+            try {
+                orderColumn = TwoColumnHistogramOrderColumn.valueOf(orderColumnParam.toUpperCase());
+                orderDirection = OrderDirection.valueOf(orderDirectionParam.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return Response.status(Response.Status.BAD_REQUEST).build();
+            }
+        }
+
         long count = nzyme.getBluetooth().getDeviceManufacturerHistogramCount(timeRange, filters, tapUUIDs);
 
         List<TwoColumnTableHistogramValueResponse> values = Lists.newArrayList();
         for (StringNumberAggregationResult x : nzyme.getBluetooth()
-                .getDeviceManufacturerHistogram(timeRange, filters, limit, offset, tapUUIDs)) {
+                .getDeviceManufacturerHistogram(timeRange, filters, limit, offset, orderColumn, orderDirection, tapUUIDs)) {
             values.add(TwoColumnTableHistogramValueResponse.create(
                     HistogramValueStructureResponse.create(x.key(), HistogramValueType.GENERIC, null),
                     HistogramValueStructureResponse.create(x.value(), HistogramValueType.INTEGER, null)
@@ -142,17 +156,30 @@ public class BluetoothDevicesResource extends TapDataHandlingResource {
                                   @QueryParam("time_range") @Valid String timeRangeParameter,
                                   @QueryParam("filters") String filtersParameter,
                                   @QueryParam("taps") String taps,
+                                  @QueryParam("order_column") @Nullable String orderColumnParam,
+                                  @QueryParam("order_direction") @Nullable String orderDirectionParam,
                                   @QueryParam("limit") int limit,
                                   @QueryParam("offset") int offset) {
         List<UUID> tapUUIDs = parseAndValidateTapIds(getAuthenticatedUser(sc), nzyme, taps);
         TimeRange timeRange = parseTimeRangeQueryParameter(timeRangeParameter);
         Filters filters = parseFiltersQueryParameter(filtersParameter);
 
+        TwoColumnHistogramOrderColumn orderColumn = TwoColumnHistogramOrderColumn.VALUE;
+        OrderDirection orderDirection = OrderDirection.DESC;
+        if (orderColumnParam != null && orderDirectionParam != null) {
+            try {
+                orderColumn = TwoColumnHistogramOrderColumn.valueOf(orderColumnParam.toUpperCase());
+                orderDirection = OrderDirection.valueOf(orderDirectionParam.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return Response.status(Response.Status.BAD_REQUEST).build();
+            }
+        }
+
         long count = nzyme.getBluetooth().getDeviceOUIHistogramCount(timeRange, filters, tapUUIDs);
 
         List<TwoColumnTableHistogramValueResponse> values = Lists.newArrayList();
         for (StringNumberAggregationResult x : nzyme.getBluetooth()
-                .getDeviceOUIHistogram(timeRange, filters, limit, offset, tapUUIDs)) {
+                .getDeviceOUIHistogram(timeRange, filters, limit, offset, orderColumn, orderDirection, tapUUIDs)) {
             values.add(TwoColumnTableHistogramValueResponse.create(
                     HistogramValueStructureResponse.create(x.key(), HistogramValueType.GENERIC, null),
                     HistogramValueStructureResponse.create(x.value(), HistogramValueType.INTEGER, null)

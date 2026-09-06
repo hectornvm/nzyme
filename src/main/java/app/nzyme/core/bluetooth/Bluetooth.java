@@ -4,6 +4,7 @@ import app.nzyme.core.NzymeNode;
 import app.nzyme.core.bluetooth.db.BluetoothDeviceSummary;
 import app.nzyme.core.database.OrderDirection;
 import app.nzyme.core.database.generic.StringNumberAggregationResult;
+import app.nzyme.core.database.generic.TwoColumnHistogramOrderColumn;
 import app.nzyme.core.shared.db.GenericIntegerHistogramEntry;
 import app.nzyme.core.shared.db.TapBasedSignalStrengthResult;
 import app.nzyme.core.util.Bucketing;
@@ -186,6 +187,8 @@ public class Bluetooth {
                                                                               Filters filters,
                                                                               int limit,
                                                                               int offset,
+                                                                              TwoColumnHistogramOrderColumn orderColumn,
+                                                                              OrderDirection orderDirection,
                                                                               List<UUID> taps) {
         if (taps.isEmpty()) {
             return Collections.emptyList();
@@ -199,11 +202,13 @@ public class Bluetooth {
                                 "AND d.tap_uuid IN (<taps>) AND d.last_seen >= :tr_from " +
                                 "AND d.last_seen <= :tr_to " + filterFragment.whereSql() + " " +
                                 "GROUP BY d.manufacturer_name HAVING 1=1 " + filterFragment.havingSql() + " " +
-                                "ORDER BY value DESC LIMIT :limit OFFSET :offset")
+                                "ORDER BY <order_column> <order_direction> LIMIT :limit OFFSET :offset")
                         .bind("tr_from", timeRange.from())
                         .bind("tr_to", timeRange.to())
                         .bind("limit", limit)
                         .bind("offset", offset)
+                        .define("order_column", orderColumn.getColumnName())
+                        .define("order_direction", orderDirection)
                         .bindList("taps", taps)
                         .bindMap(filterFragment.bindings())
                         .mapTo(StringNumberAggregationResult.class)
@@ -241,6 +246,8 @@ public class Bluetooth {
                                                                      Filters filters,
                                                                      int limit,
                                                                      int offset,
+                                                                     TwoColumnHistogramOrderColumn orderColumn,
+                                                                     OrderDirection orderDirection,
                                                                      List<UUID> taps) {
         if (taps.isEmpty()) {
             return Collections.emptyList();
@@ -254,11 +261,13 @@ public class Bluetooth {
                                 "AND d.tap_uuid IN (<taps>) AND d.last_seen >= :tr_from " +
                                 "AND d.last_seen <= :tr_to " + filterFragment.whereSql() + " " +
                                 "GROUP BY d.oui HAVING 1=1 " + filterFragment.havingSql() + " " +
-                                "ORDER BY value DESC LIMIT :limit OFFSET :offset")
+                                "ORDER BY <order_column> <order_direction> LIMIT :limit OFFSET :offset")
                         .bind("tr_from", timeRange.from())
                         .bind("tr_to", timeRange.to())
                         .bind("limit", limit)
                         .bind("offset", offset)
+                        .define("order_column", orderColumn.getColumnName())
+                        .define("order_direction", orderDirection)
                         .bindList("taps", taps)
                         .bindMap(filterFragment.bindings())
                         .mapTo(StringNumberAggregationResult.class)
