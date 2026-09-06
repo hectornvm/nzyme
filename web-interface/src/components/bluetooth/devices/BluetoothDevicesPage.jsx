@@ -75,6 +75,7 @@ export default function BluetoothDevicesPage() {
                                        refreshAction={() => setRevision(new Date())} />
 
                 <BluetoothDeviceManufacturersHistogram timeRange={timeRange}
+                                                       setFilters={setFilters}
                                                        filters={filters}
                                                        revision={revision} />
               </div>
@@ -89,6 +90,7 @@ export default function BluetoothDevicesPage() {
                                        refreshAction={() => setRevision(new Date())} />
 
                 <BluetoothDeviceOuisHistogram timeRange={timeRange}
+                                              setFilters={setFilters}
                                               filters={filters}
                                               revision={revision} />
               </div>

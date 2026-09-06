@@ -3,15 +3,14 @@ import TwoColumnHistogram from "../../widgets/histograms/TwoColumnHistogram";
 import {TapContext} from "../../../App";
 import LoadingSpinner from "../../misc/LoadingSpinner";
 import {DEFAULT_LIMIT} from "../../widgets/LimitSelector";
-import useSelectedTenant from "../../system/tenantselector/useSelectedTenant";
 import BluetoothService from "../../../services/BluetoothService";
+import {BLUETOOTH_DEVICES_FILTER_FIELDS} from "../BluetoothDevicesFilterFields";
 
 const bluetoothService = new BluetoothService();
 
-export default function BluetoothDeviceOuisHistogram({timeRange, filters, revision}) {
+export default function BluetoothDeviceOuisHistogram({timeRange, filters, setFilters, revision}) {
 
   const tapContext = useContext(TapContext);
-  const [organizationId, tenantId] = useSelectedTenant();
 
   const selectedTaps = tapContext.taps;
 
@@ -37,6 +36,10 @@ export default function BluetoothDeviceOuisHistogram({timeRange, filters, revisi
 
   return <TwoColumnHistogram data={histogram}
                              columnTitles={["OUI", "Device Count"]}
+                             columnFilterElements={[
+                               {field: "ouis", fields: BLUETOOTH_DEVICES_FILTER_FIELDS, setFilters: setFilters},
+                               null, null
+                             ]}
                              limit={limit}
                              setLimit={setLimit} />
 
