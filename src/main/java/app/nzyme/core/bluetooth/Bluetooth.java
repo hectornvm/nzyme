@@ -2,6 +2,7 @@ package app.nzyme.core.bluetooth;
 
 import app.nzyme.core.NzymeNode;
 import app.nzyme.core.bluetooth.db.BluetoothDeviceSummary;
+import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignature;
 import app.nzyme.core.database.OrderDirection;
 import app.nzyme.core.database.generic.StringNumberAggregationResult;
 import app.nzyme.core.database.generic.TwoColumnHistogramOrderColumn;
@@ -361,6 +362,46 @@ public class Bluetooth {
                         .mapTo(TapBasedSignalStrengthResult.class)
                         .list()
         );
+    }
+
+    /*
+     * Monitored Bluetooth signatures (Plan C - LOCAL ONLY).
+     */
+
+    public UUID registerMonitoredSignature(UUID organizationId, UUID tenantId, String signature, String name) {
+        UUID uuid = UUID.randomUUID();
+        nzyme.getDatabase().useHandle(handle -> handle.createUpdate(
+                "INSERT INTO bluetooth_monitored_signatures(uuid, signature, name, organization_id, tenant_id, created_at) " +
+                        "VALUES(:uuid, :signature, :name, :organization_id, :tenant_id, NOW())")
+                .bind("uuid", uuid)
+                .bind("signature", signature)
+                .bind("name", name)
+                .bind("organization_id", organizationId)
+                .bind("tenant_id", tenantId)
+                .execute());
+        return uuid;
+    }
+
+    public void deleteMonitoredSignature(UUID uuid) {
+        nzyme.getDatabase().useHandle(handle -> handle.createUpdate(
+                "DELETE FROM bluetooth_monitored_signatures WHERE uuid = :uuid")
+                .bind("uuid", uuid)
+                .execute());
+    }
+
+    public List<MonitoredBluetoothSignature> findAllMonitoredSignatures() {
+        return nzyme.getDatabase().withHandle(handle -> handle.createQuery(
+                        "SELECT * FROM bluetooth_monitored_signatures ORDER BY created_at DESC")
+                .mapTo(MonitoredBluetoothSignature.class)
+                .list());
+    }
+
+    public Optional<MonitoredBluetoothSignature> findMonitoredSignature(UUID uuid) {
+        return nzyme.getDatabase().withHandle(handle -> handle.createQuery(
+                        "SELECT * FROM bluetooth_monitored_signatures WHERE uuid = :uuid")
+                .bind("uuid", uuid)
+                .mapTo(MonitoredBluetoothSignature.class)
+                .findOne());
     }
 
 }
