@@ -17,6 +17,10 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -73,6 +77,9 @@ public class OuiService {
 
         this.isEnabled = nzyme.getConnect().isEnabled();
         if (!this.isEnabled) {
+            // Connect is not configured. Fall back to a local OUI database file
+            // at <data_directory>/oui.txt if present.
+            loadLocalOuis();
             return;
         }
 
@@ -116,6 +123,64 @@ public class OuiService {
             } finally {
                 lock.unlock();
             }
+        }
+    }
+
+    private void loadLocalOuis() {
+        lock.lock();
+        try {
+            Path path = Paths.get(nzyme.getBaseConfiguration().dataDirectory(), "oui.txt");
+            if (!Files.exists(path)) {
+                this.ouis = Map.of();
+                LOG.debug("No local OUI file found at [{}]. OUI lookups disabled.", path);
+                return;
+            }
+
+            Map<String, String> loaded = new HashMap<>();
+            for (String rawLine : Files.readAllLines(path)) {
+                String line = rawLine.trim();
+                if (line.length() < 6) {
+                    continue;
+                }
+
+                String prefix = line.split("\\s+")[0].replace("-", "");
+                if (prefix.length() != 6 || !isHex(prefix)) {
+                    continue;
+                }
+
+                // IEEE OUI database format: "AA-BB-CC  (hex)  VENDOR NAME"
+                int paren = line.indexOf("(hex)");
+                if (paren < 0) {
+                    continue;
+                }
+
+                String vendor = line.substring(paren + 5).trim();
+                if (!vendor.isEmpty()) {
+                    loaded.put(prefix.toUpperCase(), vendor);
+                }
+            }
+
+            this.ouis = loaded;
+            this.isEnabled = !loaded.isEmpty();
+            if (this.isEnabled) {
+                LOG.info("Loaded [{}] OUIs from local file [{}].", loaded.size(), path);
+            } else {
+                LOG.warn("OUI file [{}] contained no usable entries.", path);
+            }
+        } catch (Exception e) {
+            LOG.error("Could not load local OUI file.", e);
+            this.isEnabled = false;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private static boolean isHex(String s) {
+        try {
+            Long.parseLong(s, 16);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
