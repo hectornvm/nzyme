@@ -55,6 +55,8 @@ public class BluetoothDeviceSummaryMapper implements RowMapper<BluetoothDeviceSu
                 rs.getString("mac"),
                 Lists.newArrayList((String[]) rs.getArray("ouis").getArray()),
                 Lists.newArrayList((String[]) rs.getArray("manufacturer_names").getArray()),
+                Lists.newArrayList((String[]) rs.getArray("macs").getArray()),
+                rs.getString("signature"),
                 Lists.newArrayList((String[]) rs.getArray("aliases").getArray()),
                 Lists.newArrayList((String[]) rs.getArray("devices").getArray()),
                 Lists.newArrayList((String[]) rs.getArray("transports").getArray()),

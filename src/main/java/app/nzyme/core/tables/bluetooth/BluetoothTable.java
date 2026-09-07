@@ -18,7 +18,11 @@ import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 
 public class BluetoothTable implements DataTable {
 
@@ -48,10 +52,11 @@ public class BluetoothTable implements DataTable {
     private void writeDevices(Handle handle, UUID tapUuid, List<BluetoothDeviceReport> devices) {
         PreparedBatch batch = handle.prepareBatch("INSERT INTO bluetooth_devices(uuid, tap_uuid, mac, oui, " +
                 "alias, device, transport, name, rssi, company_id, class_number, appearance, modalias, tx_power, " +
-                "manufacturer_data, manufacturer_name, uuids, service_data, tags, last_seen, created_at) " +
+                "manufacturer_data, manufacturer_name, uuids, service_data, tags, signature, address_type, " +
+                "last_seen, created_at) " +
                 "VALUES(:uuid, :tap_uuid, :mac, :oui, :alias, :device, :transport, :name, :rssi, :company_id, " +
                 ":class_number, :appearance, :modalias, :tx_power, :manufacturer_data, :manufacturer_name, " +
-                ":uuids, :service_data, :tags::jsonb, :last_seen, NOW())");
+                ":uuids, :service_data, :tags::jsonb, :signature, :address_type, :last_seen, NOW())");
 
         for (BluetoothDeviceReport device : devices) {
             if (device.rssi() == null || device.rssi() == 0) {
@@ -138,11 +143,59 @@ public class BluetoothTable implements DataTable {
                     .bind("uuids", uuids)
                     .bind("service_data", serviceData)
                     .bind("tags", tags)
+                    .bind("signature", computeSignature(device.companyId(), device.uuids(), device.name()))
+                    .bind("address_type", device.addressType())
                     .bind("last_seen", device.lastSeen())
                     .add();
         }
 
         batch.execute();
+    }
+
+
+    private static String computeSignature(Integer companyId, List<String> uuids, String name) {
+        String normalizedName = name == null ? "" : name.trim().toLowerCase();
+
+        TreeSet<String> cleanUuids = new TreeSet<>();
+        boolean hasProductPrivateUuid = false;
+        if (uuids != null) {
+            for (String uuid : uuids) {
+                if (uuid == null || uuid.isEmpty()) {
+                    continue;
+                }
+                String u = uuid.toLowerCase().trim();
+                if (u.length() == 36 && u.startsWith("0000") && u.endsWith("-0000-1000-8000-00805f9b34fb")) {
+                    u = u.substring(4, 8);
+                } else {
+                    hasProductPrivateUuid = true;
+                }
+                cleanUuids.add(u);
+            }
+        }
+
+        if (normalizedName.isEmpty() && !hasProductPrivateUuid) {
+            return null;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("c=").append(companyId == null ? 0 : companyId).append("|");
+        sb.append("u=").append(String.join(",", cleanUuids)).append("|");
+        sb.append("n=").append(normalizedName);
+
+        try {
+            return toHex(MessageDigest.getInstance("SHA-256")
+                    .digest(sb.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 unavailable", e);
+        }
+    }
+
+    private static String toHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private static String extract16BitUuid(String uuidStr) throws InvalidBluetoothUuidException {

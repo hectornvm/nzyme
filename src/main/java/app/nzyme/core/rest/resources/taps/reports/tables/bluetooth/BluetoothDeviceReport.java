@@ -39,6 +39,8 @@ public abstract class BluetoothDeviceReport {
     @Nullable
     public abstract List<String> serviceData();
     @Nullable
+    public abstract String addressType();
+    @Nullable
     public abstract Map<String, Map<String, Object>> tags();
 
     @JsonCreator
@@ -57,6 +59,7 @@ public abstract class BluetoothDeviceReport {
                                                @JsonProperty("manufacturer_data") String manufacturerData,
                                                @JsonProperty("uuids") List<String> uuids,
                                                @JsonProperty("service_data") List<String> serviceData,
+                                               @JsonProperty("address_type") String addressType,
                                                @JsonProperty("tags") Map<String, Map<String, Object>> tags) {
         return builder()
                 .mac(mac)
@@ -74,6 +77,7 @@ public abstract class BluetoothDeviceReport {
                 .manufacturerData(manufacturerData)
                 .uuids(uuids)
                 .serviceData(serviceData)
+                .addressType(addressType)
                 .tags(tags)
                 .build();
     }
@@ -113,6 +117,8 @@ public abstract class BluetoothDeviceReport {
         public abstract Builder uuids(List<String> uuids);
 
         public abstract Builder serviceData(List<String> serviceData);
+
+        public abstract Builder addressType(String addressType);
 
         public abstract Builder tags(Map<String, Map<String, Object>> tags);
 

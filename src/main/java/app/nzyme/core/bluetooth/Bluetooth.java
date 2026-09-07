@@ -56,11 +56,11 @@ public class Bluetooth {
 
         return nzyme.getDatabase().withHandle(handle ->
                 handle.createQuery("SELECT COUNT(*) FROM (" +
-                                "SELECT d.mac FROM bluetooth_devices AS d " +
+                                "SELECT COALESCE(d.signature, d.mac) FROM bluetooth_devices AS d " +
                                 "LEFT JOIN LATERAL (SELECT DISTINCT jsonb_object_keys(d.tags) AS tag) AS ignore ON true " +
                                 "WHERE d.last_seen >= :tr_from AND d.last_seen <= :tr_to " +
                                 "AND d.tap_uuid IN (<taps>) " + filterFragment.whereSql() +
-                                "GROUP BY d.mac HAVING 1=1 " + filterFragment.havingSql() +
+                                "GROUP BY COALESCE(d.signature, d.mac) HAVING 1=1 " + filterFragment.havingSql() +
                                 ") AS devices")
                         .bind("tr_from", timeRange.from())
                         .bind("tr_to", timeRange.to())
@@ -85,7 +85,9 @@ public class Bluetooth {
         FilterSqlFragment filterFragment = FilterSql.generate(filters, new BluetoothDeviceFilters());
 
         return nzyme.getDatabase().withHandle(handle ->
-                handle.createQuery("SELECT d.mac, " +
+                handle.createQuery("SELECT MIN(d.mac) AS mac, " +
+                                "COALESCE(ARRAY_AGG(DISTINCT d.mac), ARRAY[]::text[]) AS macs, " +
+                                "COALESCE(d.signature, d.mac) AS signature, " +
                                 "COALESCE(ARRAY_AGG(DISTINCT d.oui) " +
                                 "FILTER (WHERE d.oui IS NOT NULL), ARRAY[]::text[]) AS ouis, " +
                                 "COALESCE(ARRAY_AGG(DISTINCT d.manufacturer_name) " +
@@ -112,7 +114,7 @@ public class Bluetooth {
                                 "LEFT JOIN LATERAL (SELECT DISTINCT jsonb_object_keys(d.tags) AS tag) AS ignore ON true " +
                                 "WHERE d.last_seen >= :tr_from AND d.last_seen <= :tr_to " +
                                 "AND d.tap_uuid IN (<taps>) " + filterFragment.whereSql() +
-                                "GROUP BY d.mac HAVING 1=1 " + filterFragment.havingSql() + " " +
+                                "GROUP BY COALESCE(d.signature, d.mac) HAVING 1=1 " + filterFragment.havingSql() + " " +
                                 "ORDER BY <order_column> <order_direction> " +
                                 "LIMIT :limit OFFSET :offset")
                         .bind("tr_from", timeRange.from())
@@ -281,7 +283,9 @@ public class Bluetooth {
         }
 
         return nzyme.getDatabase().withHandle(handle ->
-                handle.createQuery("SELECT d.mac, " +
+                handle.createQuery("SELECT MIN(d.mac) AS mac, " +
+                                "COALESCE(ARRAY_AGG(DISTINCT d.mac), ARRAY[]::text[]) AS macs, " +
+                                "COALESCE(d.signature, d.mac) AS signature, " +
                                 "COALESCE(ARRAY_AGG(DISTINCT d.oui) " +
                                 "FILTER (WHERE d.oui IS NOT NULL), ARRAY[]::text[]) AS ouis, " +
                                 "COALESCE(ARRAY_AGG(DISTINCT d.manufacturer_name) " +
@@ -307,7 +311,7 @@ public class Bluetooth {
                                 "FROM bluetooth_devices AS d " +
                                 "LEFT JOIN LATERAL (SELECT DISTINCT jsonb_object_keys(d.tags) AS tag) AS ignore ON true " +
                                 "WHERE mac = :mac AND d.tap_uuid IN (<taps>) " +
-                                "GROUP BY d.mac")
+                                "GROUP BY COALESCE(d.signature, d.mac)")
                         .bind("mac", mac)
                         .bindList("taps", taps)
                         .mapTo(BluetoothDeviceSummary.class)
