@@ -14,6 +14,10 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import tools.jackson.databind.json.JsonMapper;
@@ -79,6 +83,10 @@ public class BluetoothSigService {
 
         this.isEnabled = nzyme.getConnect().isEnabled();
         if (!this.isEnabled) {
+            // Connect is not configured. Fall back to local Bluetooth SIG data
+            // files in <data_directory> if present (company-identifiers.txt and
+            // service-uuids.txt).
+            loadLocalSigData();
             return;
         }
 
@@ -103,6 +111,87 @@ public class BluetoothSigService {
         } finally {
             lock.unlock();
         }
+    }
+
+    private void loadLocalSigData() {
+        lock.lock();
+        try {
+            Map<Integer, String> loadedCompanies = new HashMap<>();
+
+            // Company identifiers: <decimal-id>\t<Company Name> per line.
+            Path companyPath = Paths.get(nzyme.getBaseConfiguration().dataDirectory(), "company-identifiers.txt");
+            if (Files.exists(companyPath)) {
+                for (String rawLine : Files.readAllLines(companyPath)) {
+                    String line = rawLine.trim();
+                    int tab = line.indexOf('\t');
+                    if (tab <= 0) {
+                        continue;
+                    }
+
+                    try {
+                        int id = Integer.parseInt(line.substring(0, tab));
+                        String name = line.substring(tab + 1).trim();
+                        if (!name.isEmpty()) {
+                            loadedCompanies.put(id, name);
+                        }
+                    } catch (NumberFormatException ignored) {
+                        // Skip malformed lines.
+                    }
+                }
+            } else {
+                LOG.debug("No local company identifiers file found at [{}].", companyPath);
+            }
+
+            this.companyIds = loadedCompanies;
+            this.serviceUuids = loadLocalServiceUuids();
+            this.isEnabled = !loadedCompanies.isEmpty() || !this.serviceUuids.isEmpty();
+            if (this.isEnabled) {
+                LOG.info("Loaded [{}] Bluetooth company identifiers and [{}] service UUIDs from local files.", loadedCompanies.size(), this.serviceUuids.size());
+            }
+        } catch (Exception e) {
+            LOG.error("Could not load local Bluetooth SIG data.", e);
+            this.isEnabled = false;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private Map<String, String> loadLocalServiceUuids() {
+        Map<String, String> loaded = new HashMap<>();
+
+        // Service UUIDs: <key>\t<Service Name> per line (key matches the 16-bit
+        // extract format, e.g. "0x180F").
+        Path path = Paths.get(nzyme.getBaseConfiguration().dataDirectory(), "service-uuids.txt");
+        if (!Files.exists(path)) {
+            LOG.debug("No local service UUID file found at [{}].", path);
+            return loaded;
+        }
+
+        try {
+            for (String rawLine : Files.readAllLines(path)) {
+                String line = rawLine.trim();
+                int tab = line.indexOf('\t');
+                if (tab <= 0) {
+                    continue;
+                }
+
+                String key = line.substring(0, tab).trim();
+                String name = line.substring(tab + 1).trim();
+                if (!key.isEmpty() && !name.isEmpty()) {
+                    // Keys must match extract16BitUuid() output exactly (e.g. "0x180F" -
+                    // lowercase 'x', uppercase hex). No case normalisation here.
+                    loaded.put(key, name);
+                }
+            }
+        } catch (Exception e) {
+            LOG.error("Could not load local service UUID data.", e);
+        }
+
+        if (!loaded.isEmpty()) {
+            LOG.info("Loaded [{}] Bluetooth service UUIDs from local file [{}].", loaded.size(), path);
+        }
+
+        return loaded;
     }
 
     public Optional<String> lookupCompanyId(int companyId) {

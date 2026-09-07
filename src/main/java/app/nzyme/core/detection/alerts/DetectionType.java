@@ -36,6 +36,10 @@ public enum DetectionType {
     // Environmental monitoring.
     ENVIRONMENTAL_SEVERE_ALERT("Severe environmental/weather monitoring alert received", Subsystem.GENERIC),
 
+    // Bluetooth monitoring alerts.
+    BLUETOOTH_MONITORED_DEVICE_PRESENT("Bluetooth Monitor: Monitored device present in range", Subsystem.BLUETOOTH),
+    BLUETOOTH_MONITORED_DEVICE_SIGNATURE_MISMATCH("Bluetooth Monitor: Possible monitored device impersonation (conflicting signal)", Subsystem.BLUETOOTH),
+
     // Wildcard subscription.
     WILDCARD("Subscribed to all detection alerts. (Wildcard)", Subsystem.GENERIC);
 

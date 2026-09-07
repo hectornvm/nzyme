@@ -8637,5 +8637,46 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="add_signature_to_bluetooth_devices" author="concho">
+        <addColumn tableName="bluetooth_devices">
+            <column name="signature" type="varchar(64)">
+                <constraints nullable="true" />
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="add_address_type_to_bluetooth_devices" author="concho">
+        <addColumn tableName="bluetooth_devices">
+            <column name="address_type" type="varchar(32)">
+                <constraints nullable="true" />
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="add_bluetooth_monitored_signatures" author="concho">
+        <createTable tableName="bluetooth_monitored_signatures">
+            <column name="id" type="bigserial">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="uuid" type="uuid">
+                <constraints nullable="false" unique="true" />
+            </column>
+            <column name="signature" type="varchar(64)">
+                <constraints nullable="false" />
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="organization_id" type="uuid">
+                <constraints nullable="true" />
+            </column>
+            <column name="tenant_id" type="uuid">
+                <constraints nullable="true" />
+            </column>
+            <column name="created_at" type="timestamp">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
 
 </databaseChangeLog>

@@ -2,6 +2,7 @@ package app.nzyme.core.bluetooth;
 
 import app.nzyme.core.NzymeNode;
 import app.nzyme.core.bluetooth.db.BluetoothDeviceSummary;
+import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignature;
 import app.nzyme.core.shared.db.GenericIntegerHistogramEntry;
 import app.nzyme.core.shared.db.TapBasedSignalStrengthResult;
 import app.nzyme.core.util.Bucketing;
@@ -46,7 +47,10 @@ public class Bluetooth {
         }
 
         return nzyme.getDatabase().withHandle(handle ->
-                handle.createQuery("SELECT d.mac, ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
+                handle.createQuery("SELECT MIN(d.mac) AS mac, " +
+                                "ARRAY_AGG(DISTINCT(d.mac)) AS macs, " +
+                                "COALESCE(d.signature, d.mac) AS signature, " +
+                                "ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
                                 "ARRAY_AGG(DISTINCT(d.device)) AS devices, " +
                                 "ARRAY_AGG(DISTINCT(d.transport)) AS transports, " +
                                 "ARRAY_AGG(DISTINCT(COALESCE(d.name, 'None'))) AS names, " +
@@ -59,7 +63,7 @@ public class Bluetooth {
                                 "FROM bluetooth_devices AS d " +
                                 "LEFT JOIN LATERAL (SELECT DISTINCT jsonb_object_keys(d.tags) AS tag) AS ignore ON true " +
                                 "WHERE d.last_seen >= :tr_from AND d.last_seen <= :tr_to AND d.tap_uuid IN (<taps>) " +
-                                "GROUP BY d.mac " +
+                                "GROUP BY COALESCE(d.signature, d.mac) " +
                                 "ORDER BY average_rssi DESC " +
                                 "LIMIT :limit OFFSET :offset")
                         .bind("tr_from", timeRange.from())
@@ -78,7 +82,10 @@ public class Bluetooth {
         }
 
         return nzyme.getDatabase().withHandle(handle ->
-                handle.createQuery("SELECT d.mac, ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
+                handle.createQuery("SELECT MIN(d.mac) AS mac, " +
+                                "ARRAY_AGG(DISTINCT(d.mac)) AS macs, " +
+                                "COALESCE(d.signature, d.mac) AS signature, " +
+                                "ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
                                 "ARRAY_AGG(DISTINCT(d.device)) AS devices, " +
                                 "ARRAY_AGG(DISTINCT(d.transport)) AS transports, " +
                                 "ARRAY_AGG(DISTINCT(COALESCE(d.name, 'None'))) AS names, " +
@@ -91,7 +98,7 @@ public class Bluetooth {
                                 "FROM bluetooth_devices AS d " +
                                 "LEFT JOIN LATERAL (SELECT DISTINCT jsonb_object_keys(d.tags) AS tag) AS ignore ON true " +
                                 "WHERE mac = :mac AND d.tap_uuid IN (<taps>) " +
-                                "GROUP BY d.mac ")
+                                "GROUP BY COALESCE(d.signature, d.mac) ")
                         .bind("mac", mac)
                         .bindList("taps", taps)
                         .mapTo(BluetoothDeviceSummary.class)
@@ -141,6 +148,46 @@ public class Bluetooth {
                         .mapTo(TapBasedSignalStrengthResult.class)
                         .list()
         );
+    }
+
+    /*
+     * Monitored Bluetooth signatures (Plan C - LOCAL ONLY).
+     */
+
+    public UUID registerMonitoredSignature(UUID organizationId, UUID tenantId, String signature, String name) {
+        UUID uuid = UUID.randomUUID();
+        nzyme.getDatabase().useHandle(handle -> handle.createUpdate(
+                "INSERT INTO bluetooth_monitored_signatures(uuid, signature, name, organization_id, tenant_id, created_at) " +
+                        "VALUES(:uuid, :signature, :name, :organization_id, :tenant_id, NOW())")
+                .bind("uuid", uuid)
+                .bind("signature", signature)
+                .bind("name", name)
+                .bind("organization_id", organizationId)
+                .bind("tenant_id", tenantId)
+                .execute());
+        return uuid;
+    }
+
+    public void deleteMonitoredSignature(UUID uuid) {
+        nzyme.getDatabase().useHandle(handle -> handle.createUpdate(
+                "DELETE FROM bluetooth_monitored_signatures WHERE uuid = :uuid")
+                .bind("uuid", uuid)
+                .execute());
+    }
+
+    public List<MonitoredBluetoothSignature> findAllMonitoredSignatures() {
+        return nzyme.getDatabase().withHandle(handle -> handle.createQuery(
+                        "SELECT * FROM bluetooth_monitored_signatures ORDER BY created_at DESC")
+                .mapTo(MonitoredBluetoothSignature.class)
+                .list());
+    }
+
+    public Optional<MonitoredBluetoothSignature> findMonitoredSignature(UUID uuid) {
+        return nzyme.getDatabase().withHandle(handle -> handle.createQuery(
+                        "SELECT * FROM bluetooth_monitored_signatures WHERE uuid = :uuid")
+                .bind("uuid", uuid)
+                .mapTo(MonitoredBluetoothSignature.class)
+                .findOne());
     }
 
 }
