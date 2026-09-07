@@ -13,6 +13,7 @@ function BluetoothMacAddress(props) {
   // Optional.
   const href = props.href;
   const onClick = props.onClick;
+  const withAssetName =  props.withAssetName;
   const filterElement = props.filterElement;
 
   return (
@@ -25,6 +26,7 @@ function BluetoothMacAddress(props) {
                     type={type}
                     showOui={showOui}
                     filterElement={filterElement}
+                    withAssetName={withAssetName}
                     href={href}
                     onClick={onClick}
                     highlighted={highlighted} />

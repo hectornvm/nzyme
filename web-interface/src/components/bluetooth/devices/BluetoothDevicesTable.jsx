@@ -102,6 +102,7 @@ export default function BluetoothDevicesTable({timeRange, filters, setFilters, r
                 <tr key={i}>
                   <td>
                     <BluetoothMacAddress addressWithContext={d.mac}
+                                         withAssetName
                                          filterElement={d.mac && d.mac.address ? <FilterValueIcon setFilters={setFilters}
                                                                                                   fields={BLUETOOTH_DEVICES_FILTER_FIELDS}
                                                                                                   field="mac"
