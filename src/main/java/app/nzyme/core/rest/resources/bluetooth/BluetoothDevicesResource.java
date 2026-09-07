@@ -145,6 +145,8 @@ public class BluetoothDevicesResource extends TapDataHandlingResource {
                                         ))
                                 .orElse(null)
                 ),
+                dev.macs(),
+                dev.signature(),
                 dev.aliases(),
                 dev.devices(),
                 dev.transports(),

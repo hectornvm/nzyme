@@ -17,7 +17,11 @@ import org.jdbi.v3.core.statement.PreparedBatch;
 import org.joda.time.DateTime;
 
 import java.util.List;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 
 public class BluetoothTable implements DataTable {
 
@@ -47,9 +51,10 @@ public class BluetoothTable implements DataTable {
     private void writeDevices(Handle handle, UUID tapUuid, List<BluetoothDeviceReport> devices) {
         PreparedBatch batch = handle.prepareBatch("INSERT INTO bluetooth_devices(uuid, tap_uuid, mac, alias, " +
                 "device, transport, name, rssi, company_id, class_number, appearance, modalias, tx_power, " +
-                "manufacturer_data, uuids, service_data, tags, last_seen, created_at) VALUES(:uuid, :tap_uuid, :mac, " +
-                ":alias, :device, :transport, :name, :rssi, :company_id, :class_number, :appearance, :modalias, " +
-                ":tx_power, :manufacturer_data, :uuids, :service_data, :tags::jsonb, :last_seen, NOW())");
+                "manufacturer_data, uuids, service_data, tags, signature, address_type, last_seen, created_at) " +
+                "VALUES(:uuid, :tap_uuid, :mac, :alias, :device, :transport, :name, :rssi, :company_id, " +
+                ":class_number, :appearance, :modalias, :tx_power, :manufacturer_data, :uuids, :service_data, " +
+                ":tags::jsonb, :signature, :address_type, :last_seen, NOW())");
 
         for (BluetoothDeviceReport device : devices) {
             List<BluetoothServiceUuidJson> serviceUuids = Lists.newArrayList();
@@ -119,11 +124,82 @@ public class BluetoothTable implements DataTable {
                     .bind("uuids", uuids)
                     .bind("service_data", serviceData)
                     .bind("tags", tags)
+                    .bind("signature", computeSignature(device.companyId(), device.uuids(), device.name()))
+                    .bind("address_type", device.addressType())
                     .bind("last_seen", device.lastSeen())
                     .add();
         }
 
         batch.execute();
+    }
+
+    /**
+     * Deterministic SHA-256 signature over the STABLE advertisement fields, used
+     * to attribute a physical BT device across MAC rotations. Deliberately
+     * excludes manufacturer_data (Apple Enhanced-Privacy devices rotate some of
+     * those bytes), the MAC itself, and all timestamps/RSSI.
+     */
+    /**
+     * Deterministic SHA-256 signature over the STABLE advertisement fields, used
+     * to attribute a physical BT device across MAC rotations. Deliberately
+     * excludes manufacturer_data (Apple Enhanced-Privacy devices rotate some of
+     * those bytes), the MAC itself, and all timestamps/RSSI.
+     *
+     * Returns NULL for devices that carry NO identifying content (no advertised
+     * name and no product-private UUID): such devices are not attributable and
+     * must NOT be grouped (a NULL signature groups per-MAC downstream), otherwise
+     * every contentless beacon of a vendor (e.g. all Telink chips advertising the
+     * shared 16-bit service UUID 0xfe07 with no name) would collapse into one
+     * phantom device.
+     */
+    private static String computeSignature(Integer companyId, List<String> uuids, String name) {
+        String normalizedName = name == null ? "" : name.trim().toLowerCase();
+
+        TreeSet<String> cleanUuids = new TreeSet<>();
+        boolean hasProductPrivateUuid = false;
+        if (uuids != null) {
+            for (String uuid : uuids) {
+                if (uuid == null || uuid.isEmpty()) {
+                    continue;
+                }
+                String u = uuid.toLowerCase().trim();
+                // Normalize standard 16-bit base UUIDs (0000XXXX-0000-1000-8000-00805f9b34fb)
+                // to their short hex so equivalent IDs hash identically.
+                if (u.length() == 36 && u.startsWith("0000") && u.endsWith("-0000-1000-8000-00805f9b34fb")) {
+                    u = u.substring(4, 8);
+                } else {
+                    // A non-empty UUID that isn't a shared 16-bit SIG service is
+                    // product-private -> counts as identifying content.
+                    hasProductPrivateUuid = true;
+                }
+                cleanUuids.add(u);
+            }
+        }
+
+        // No advertised name and no product-private UUID -> not attributable.
+        if (normalizedName.isEmpty() && !hasProductPrivateUuid) {
+            return null;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("c=").append(companyId == null ? 0 : companyId).append("|");
+        sb.append("u=").append(String.join(",", cleanUuids)).append("|");
+        sb.append("n=").append(normalizedName);
+
+        try {
+            return toHex(MessageDigest.getInstance("SHA-256")
+                    .digest(sb.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 unavailable", e);
+        }
+    }
+
+    private static String toHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private static String extract16BitUuid(String uuidStr) throws InvalidBluetoothUuidException {

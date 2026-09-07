@@ -46,7 +46,10 @@ public class Bluetooth {
         }
 
         return nzyme.getDatabase().withHandle(handle ->
-                handle.createQuery("SELECT d.mac, ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
+                handle.createQuery("SELECT MIN(d.mac) AS mac, " +
+                                "ARRAY_AGG(DISTINCT(d.mac)) AS macs, " +
+                                "COALESCE(d.signature, d.mac) AS signature, " +
+                                "ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
                                 "ARRAY_AGG(DISTINCT(d.device)) AS devices, " +
                                 "ARRAY_AGG(DISTINCT(d.transport)) AS transports, " +
                                 "ARRAY_AGG(DISTINCT(COALESCE(d.name, 'None'))) AS names, " +
@@ -59,7 +62,7 @@ public class Bluetooth {
                                 "FROM bluetooth_devices AS d " +
                                 "LEFT JOIN LATERAL (SELECT DISTINCT jsonb_object_keys(d.tags) AS tag) AS ignore ON true " +
                                 "WHERE d.last_seen >= :tr_from AND d.last_seen <= :tr_to AND d.tap_uuid IN (<taps>) " +
-                                "GROUP BY d.mac " +
+                                "GROUP BY COALESCE(d.signature, d.mac) " +
                                 "ORDER BY average_rssi DESC " +
                                 "LIMIT :limit OFFSET :offset")
                         .bind("tr_from", timeRange.from())
@@ -78,7 +81,10 @@ public class Bluetooth {
         }
 
         return nzyme.getDatabase().withHandle(handle ->
-                handle.createQuery("SELECT d.mac, ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
+                handle.createQuery("SELECT MIN(d.mac) AS mac, " +
+                                "ARRAY_AGG(DISTINCT(d.mac)) AS macs, " +
+                                "COALESCE(d.signature, d.mac) AS signature, " +
+                                "ARRAY_AGG(DISTINCT(d.alias)) AS aliases, " +
                                 "ARRAY_AGG(DISTINCT(d.device)) AS devices, " +
                                 "ARRAY_AGG(DISTINCT(d.transport)) AS transports, " +
                                 "ARRAY_AGG(DISTINCT(COALESCE(d.name, 'None'))) AS names, " +
@@ -91,7 +97,7 @@ public class Bluetooth {
                                 "FROM bluetooth_devices AS d " +
                                 "LEFT JOIN LATERAL (SELECT DISTINCT jsonb_object_keys(d.tags) AS tag) AS ignore ON true " +
                                 "WHERE mac = :mac AND d.tap_uuid IN (<taps>) " +
-                                "GROUP BY d.mac ")
+                                "GROUP BY COALESCE(d.signature, d.mac) ")
                         .bind("mac", mac)
                         .bindList("taps", taps)
                         .mapTo(BluetoothDeviceSummary.class)

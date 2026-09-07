@@ -8637,5 +8637,20 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="add_signature_to_bluetooth_devices" author="concho">
+        <addColumn tableName="bluetooth_devices">
+            <column name="signature" type="varchar(64)">
+                <constraints nullable="true" />
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="add_address_type_to_bluetooth_devices" author="concho">
+        <addColumn tableName="bluetooth_devices">
+            <column name="address_type" type="varchar(32)">
+                <constraints nullable="true" />
+            </column>
+        </addColumn>
+    </changeSet>
 
 </databaseChangeLog>
