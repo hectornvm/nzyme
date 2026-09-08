@@ -4,6 +4,7 @@ import app.nzyme.core.assets.db.AssetEntryMapper;
 import app.nzyme.core.assets.db.AssetHostnameEntryMapper;
 import app.nzyme.core.assets.db.AssetIpAddressEntryMapper;
 import app.nzyme.core.bluetooth.db.BluetoothDeviceEntryMapper;
+import app.nzyme.core.bluetooth.db.BluetoothDeviceSummaryMapper;
 import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignatureMapper;
 import app.nzyme.core.configuration.node.NodeConfiguration;
 import app.nzyme.core.context.db.MacAddressContextEntryMapper;
