@@ -18,11 +18,19 @@ pub fn tag(advertisement: &Arc<BluetoothDeviceAdvertisement>)
             return None
         }
 
-        if payload[0] == 0x07 || payload[0] == 0x12 {
+        // FindMy / AirTag offline-finding advertisements carry a SUBTYPE byte [0]
+        // (0x07 unpaired / 0x12 paired) followed by a LENGTH byte [1] of 0x19 (25)
+        // and the 22-byte rotating key. The length byte is the discriminator that
+        // separates a genuine FindMy accessory from other Apple 0x12-prefixed
+        // payloads (e.g. short 0x12 0x02 beacons which are AirPods/other Apple
+        // devices, not FindMy trackers - see Plan E audit). Battery lives in the
+        // top two bits of the status byte [2] (AirGuard: (mfg[2]>>6)&0x03), NOT
+        // the 0xF0 nibble the earlier code read.
+        if (payload[0] == 0x07 || payload[0] == 0x12) && payload.len() >= 3 && payload[1] == 0x19 {
             let mut parameters: HashMap<String, TagValue> = HashMap::new();
 
             let (battery_level, battery_level_string) = status_to_battery_state_description(
-                (payload[2] & 0xF0) >> 4
+                (payload[2] >> 6) & 0x03
             );
 
             let is_paired = payload[0] == 0x12;
@@ -51,17 +59,12 @@ pub fn tag(advertisement: &Arc<BluetoothDeviceAdvertisement>)
 }
 
 fn status_to_battery_state_description(state: u8) -> (u8, &'static str) {
+    // AirGuard: 0=FULL, 1=MEDIUM, 2=LOW, 3=VERY_LOW. Report representative %.
     match state {
-        1 => (90, "Fully Charged"),
-        2 => (80, "Very High"),
-        3 => (70, "High"),
-        4 => (60, "Above Medium"),
-        5 => (50, "Medium"),
-        6 => (40, "Below Medium"),
-        7 => (30, "Low"),
-        8 => (20, "Very Low"),
-        9 => (10, "Critically Low"),
-        0 => (1, "Almost Empty"),
+        0 => (100, "Full"),
+        1 => (75, "Medium"),
+        2 => (50, "Low"),
+        3 => (15, "Very Low"),
         _ => (0, "Unknown"),
     }
 }
