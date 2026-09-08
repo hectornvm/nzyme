@@ -1,6 +1,7 @@
 package app.nzyme.core.tables.bluetooth;
 
 import app.nzyme.core.bluetooth.db.BluetoothServiceUuidJson;
+import app.nzyme.core.bluetooth.sig.AppleManufacturerData;
 import app.nzyme.core.rest.resources.taps.reports.tables.bluetooth.BluetoothDeviceReport;
 import app.nzyme.core.rest.resources.taps.reports.tables.bluetooth.BluetoothDevicesReport;
 import app.nzyme.core.tables.DataTable;
@@ -10,6 +11,7 @@ import com.codahale.metrics.Timer;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jdbi.v3.core.Handle;
@@ -17,6 +19,7 @@ import org.jdbi.v3.core.statement.PreparedBatch;
 import org.joda.time.DateTime;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -110,10 +113,27 @@ public class BluetoothTable implements DataTable {
                 LOG.warn("Could not serialize Bluetooth device data. Skipping attributes.", e);
             }
 
+            // Merge a node-side Apple advertising classification into the reported
+            // tags. The tap only tags FindMy type bytes 0x07/0x12; other Apple
+            // payload types go untagged. Classify node-side from the stored
+            // manufacturer payload (no tap change). Skip types the tap already tags.
+            Map<String, Map<String, Object>> mergedTags = device.tags();
+            if (device.companyId() != null && device.companyId() == 76 && device.manufacturerData() != null) {
+                Optional<AppleManufacturerData.AppleClassification> apple = AppleManufacturerData.classify(
+                        device.companyId(), device.manufacturerData());
+                if (apple.isPresent() && apple.get().type() != 0x07 && apple.get().type() != 0x12) {
+                    mergedTags = Maps.newHashMap(mergedTags == null ? Maps.newHashMap() : mergedTags);
+                    Map<String, Object> attrs = Maps.newHashMap();
+                    attrs.put("type", apple.get().typeHex());
+                    attrs.put("label", apple.get().label());
+                    mergedTags.put("apple_advertising", attrs);
+                }
+            }
+
             String tags;
-            if (device.tags() != null) {
+            if (mergedTags != null) {
                 try {
-                    tags = om.writeValueAsString(device.tags());
+                    tags = om.writeValueAsString(mergedTags);
                 } catch (JacksonException e) {
                     LOG.error("Could not write reported tags of Bluetooth device [{}] to JSON. Skipping tags.",
                             device.mac(), e);
