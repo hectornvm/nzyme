@@ -21,8 +21,17 @@ public class AppleManufacturerData {
 
     private static final int APPLE_COMPANY_ID = 76;
 
-    // FindMy type bytes (matching the tap tagger's gate).
+    // Apple manufacturer-payload type bytes (payload[0]; company-ID prefix already
+    // stripped by BlueZ). Labels from public reverse engineering:
+    //   0x05 AirDrop (MetaRadar APPLE_AIRDROP_PACKAGE_TYPE=0x05)
+    //   0x07 Find My (tap tagger unpaired gate)
+    //   0x0a / 0x0c Apple Continuity Nearby Action / Nearby Info
+    //   0x12 Find My "offline finding" key (OpenHaystack Advertisement.swift subtype 0x12)
+    // Types 0x01/0x09/0x10/0x13 etc. remain research-gated (reported by raw byte).
+    private static final int TYPE_AIRDROP = 0x05;
     private static final int TYPE_FIND_MY_UNPAIRED = 0x07;
+    private static final int TYPE_NEARBY_ACTION = 0x0a;
+    private static final int TYPE_NEARBY_INFO = 0x0c;
     private static final int TYPE_FIND_MY_PAIRED = 0x12;
 
     public static Optional<AppleClassification> classify(Integer companyId, String manufacturerDataBase64) {
@@ -44,8 +53,17 @@ public class AppleManufacturerData {
         int type = payload[0] & 0xFF;
         String label;
         switch (type) {
+            case TYPE_AIRDROP:
+                label = "AirDrop (Continuity)";
+                break;
             case TYPE_FIND_MY_UNPAIRED:
                 label = "Find My (unpaired)";
+                break;
+            case TYPE_NEARBY_ACTION:
+                label = "Nearby Action (Continuity)";
+                break;
+            case TYPE_NEARBY_INFO:
+                label = "Nearby Info (Continuity)";
                 break;
             case TYPE_FIND_MY_PAIRED:
                 label = "Find My (paired)";
