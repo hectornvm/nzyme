@@ -9,13 +9,11 @@ use crate::wireless::bluetooth::detection::device_tagger::TagValue;
 ///   Samsung SmartTag: 0xFD5A (service data prefix 0x10)
 ///   Tile:             0xFEED (service data prefix 0x02 0x00)
 ///   Chipolo:          0xFE33
+///   Google Find My Device: 0xFEAA (service data subtype 0x40)
 /// Detecting by the advertised service UUID is a strong, dedicated signal (these
 /// UUIDs are reserved to the tracker offline-finding functions); the service-data
-/// prefix would add marginal precision only.
-///
-/// Google Find My Device network trackers (Pebblebee/Chipolo/Motorola/Hama/Eufy/Jio)
-/// broadcast Apple-compatible FindMy manufacturer payloads under non-Apple makers and
-/// are NOT covered here (the Apple tagger's company==76 gate misses them) - defer.
+/// prefix/subtype would add marginal precision only. Google FMD maker distinction
+/// (Pebblebee/Chipolo/Motorola/Hama/Eufy/Jio) needs deeper service-data parse - defer.
 ///
 /// LOCAL ONLY (BT enrichment work - never push upstream).
 pub fn tag(advertisement: &Arc<BluetoothDeviceAdvertisement>) 
@@ -33,6 +31,8 @@ pub fn tag(advertisement: &Arc<BluetoothDeviceAdvertisement>)
             "tile"
         } else if u.contains("0000fe33-0000-1000-8000-00805f9b34fb") {
             "chipolo"
+        } else if u.contains("0000feaa-0000-1000-8000-00805f9b34fb") {
+            "google_find_my_device"
         } else {
             continue;
         };
