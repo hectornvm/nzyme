@@ -75,11 +75,13 @@ public class BluetoothTable implements DataTable {
 
         PreparedBatch batch = handle.prepareBatch("INSERT INTO bluetooth_devices(uuid, tap_uuid, mac, oui, " +
                 "alias, device, transport, name, rssi, company_id, class_number, appearance, modalias, tx_power, " +
-                "manufacturer_data, manufacturer_name, uuids, service_data, tags, signature, address_type, " +
+                "manufacturer_data, manufacturer_name, uuids, service_data, service_data_payloads, tags, " +
+                "signature, address_type, " +
                 "last_seen, created_at) " +
                 "VALUES(:uuid, :tap_uuid, :mac, :oui, :alias, :device, :transport, :name, :rssi, :company_id, " +
                 ":class_number, :appearance, :modalias, :tx_power, :manufacturer_data, :manufacturer_name, " +
-                ":uuids, :service_data, :tags::jsonb, :signature, :address_type, :last_seen, NOW())");
+                ":uuids, :service_data, :service_data_payloads, :tags::jsonb, :signature, :address_type, " +
+                ":last_seen, NOW())");
 
         for (BluetoothDeviceReport device : devices) {
             if (device.rssi() == null || device.rssi() == 0) {
@@ -123,12 +125,16 @@ public class BluetoothTable implements DataTable {
 
             String uuids = null;
             String serviceData = null;
+            String serviceDataPayloads = null;
             try {
                 // Service UUIDs.
                 if (!serviceUuids.isEmpty()) {
                     uuids = om.writeValueAsString(serviceUuids);
                 }
                 serviceData = om.writeValueAsString(device.serviceData());
+                if (device.serviceDataPayloads() != null && !device.serviceDataPayloads().isEmpty()) {
+                    serviceDataPayloads = om.writeValueAsString(device.serviceDataPayloads());
+                }
             } catch (JacksonException e) {
                 LOG.warn("Could not serialize Bluetooth device data. Skipping attributes.", e);
             }
@@ -230,6 +236,7 @@ public class BluetoothTable implements DataTable {
                     .bind("manufacturer_name", manufacturerName)
                     .bind("uuids", uuids)
                     .bind("service_data", serviceData)
+                    .bind("service_data_payloads", serviceDataPayloads)
                     .bind("tags", tags)
                     .bind("signature", signature)
                     .bind("address_type", device.addressType())

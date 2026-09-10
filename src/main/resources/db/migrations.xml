@@ -8765,5 +8765,13 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="add_bluetooth_service_data_payloads" author="concho">
+        <addColumn tableName="bluetooth_devices">
+            <column name="service_data_payloads" type="text">
+                <constraints nullable="true" />
+            </column>
+        </addColumn>
+    </changeSet>
+
 
 </databaseChangeLog>

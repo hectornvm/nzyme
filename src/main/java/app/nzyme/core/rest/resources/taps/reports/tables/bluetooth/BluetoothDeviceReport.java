@@ -38,6 +38,14 @@ public abstract class BluetoothDeviceReport {
     public abstract List<String> uuids();
     @Nullable
     public abstract List<String> serviceData();
+
+    /**
+     * Service UUID -> Base64 payload bytes. Sent by taps >= this revision; decoded from BlueZ
+     * ServiceData (a{sv}). Used for tracker payload prefixes and Fast Pair model IDs.
+     */
+    @Nullable
+    public abstract Map<String, String> serviceDataPayloads();
+
     @Nullable
     public abstract String addressType();
     @Nullable
@@ -59,6 +67,7 @@ public abstract class BluetoothDeviceReport {
                                                @JsonProperty("manufacturer_data") String manufacturerData,
                                                @JsonProperty("uuids") List<String> uuids,
                                                @JsonProperty("service_data") List<String> serviceData,
+                                               @JsonProperty("service_data_payloads") Map<String, String> serviceDataPayloads,
                                                @JsonProperty("address_type") String addressType,
                                                @JsonProperty("tags") Map<String, Map<String, Object>> tags) {
         return builder()
@@ -77,6 +86,7 @@ public abstract class BluetoothDeviceReport {
                 .manufacturerData(manufacturerData)
                 .uuids(uuids)
                 .serviceData(serviceData)
+                .serviceDataPayloads(serviceDataPayloads)
                 .addressType(addressType)
                 .tags(tags)
                 .build();
@@ -117,6 +127,8 @@ public abstract class BluetoothDeviceReport {
         public abstract Builder uuids(List<String> uuids);
 
         public abstract Builder serviceData(List<String> serviceData);
+
+        public abstract Builder serviceDataPayloads(Map<String, String> serviceDataPayloads);
 
         public abstract Builder addressType(String addressType);
 
