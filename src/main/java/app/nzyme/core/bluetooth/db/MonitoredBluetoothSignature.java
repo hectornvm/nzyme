@@ -1,5 +1,6 @@
 package app.nzyme.core.bluetooth.db;
 
+import app.nzyme.core.security.authentication.TenantScopedEntity;
 import com.google.auto.value.AutoValue;
 import org.joda.time.DateTime;
 
@@ -15,7 +16,7 @@ import java.util.UUID;
  * LOCAL ONLY feature (BT attribution work - never push upstream).
  */
 @AutoValue
-public abstract class MonitoredBluetoothSignature {
+public abstract class MonitoredBluetoothSignature implements TenantScopedEntity {
 
     public abstract long id();
     public abstract UUID uuid();

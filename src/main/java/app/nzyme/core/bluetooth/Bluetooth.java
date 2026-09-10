@@ -3,6 +3,7 @@ package app.nzyme.core.bluetooth;
 import app.nzyme.core.NzymeNode;
 import app.nzyme.core.bluetooth.db.BluetoothDeviceSummary;
 import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignature;
+import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignatureSighting;
 import app.nzyme.core.database.OrderDirection;
 import app.nzyme.core.database.generic.StringNumberAggregationResult;
 import app.nzyme.core.database.generic.TwoColumnHistogramOrderColumn;
@@ -13,6 +14,7 @@ import app.nzyme.core.util.TimeRange;
 import app.nzyme.core.util.filters.FilterSql;
 import app.nzyme.core.util.filters.FilterSqlFragment;
 import app.nzyme.core.util.filters.Filters;
+import org.joda.time.DateTime;
 
 import java.util.Collections;
 import java.util.List;
@@ -402,6 +404,57 @@ public class Bluetooth {
                 .bind("uuid", uuid)
                 .mapTo(MonitoredBluetoothSignature.class)
                 .findOne());
+    }
+
+    public List<MonitoredBluetoothSignature> findAllMonitoredSignatures(UUID organizationId, UUID tenantId) {
+        return nzyme.getDatabase().withHandle(handle -> handle.createQuery(
+                        "SELECT * FROM bluetooth_monitored_signatures " +
+                                "WHERE organization_id = :organization_id AND tenant_id = :tenant_id " +
+                                "ORDER BY created_at DESC")
+                .bind("organization_id", organizationId)
+                .bind("tenant_id", tenantId)
+                .mapTo(MonitoredBluetoothSignature.class)
+                .list());
+    }
+
+    public Optional<MonitoredBluetoothSignature> findMonitoredSignatureBySignature(UUID organizationId,
+                                                                                   UUID tenantId,
+                                                                                   String signature) {
+        return nzyme.getDatabase().withHandle(handle -> handle.createQuery(
+                        "SELECT * FROM bluetooth_monitored_signatures " +
+                                "WHERE organization_id = :organization_id AND tenant_id = :tenant_id " +
+                                "AND signature = :signature")
+                .bind("organization_id", organizationId)
+                .bind("tenant_id", tenantId)
+                .bind("signature", signature)
+                .mapTo(MonitoredBluetoothSignature.class)
+                .findOne());
+    }
+
+    /**
+     * Aggregate recent sightings of one monitored device signature, grouped by reporting MAC and
+     * tap. AT least two sightings per group are required to smooth out single-advertisement RSSI
+     * noise. Used by the SIGNATURE_MISMATCH impersonation heuristic (Plan C3).
+     */
+    public List<MonitoredBluetoothSignatureSighting> findRecentMonitoredSignatureSightings(String signature,
+                                                                                           UUID organizationId,
+                                                                                           UUID tenantId,
+                                                                                           int lookbackMinutes) {
+        return nzyme.getDatabase().withHandle(handle -> handle.createQuery(
+                        "SELECT d.mac AS mac, d.tap_uuid AS tap_id, t.name AS tap_name, " +
+                                "AVG(d.rssi) AS average_rssi, COUNT(*) AS sightings, MAX(d.last_seen) AS last_seen " +
+                                "FROM bluetooth_devices AS d " +
+                                "LEFT JOIN taps AS t ON d.tap_uuid = t.uuid " +
+                                "WHERE d.signature = :signature AND d.last_seen >= :cutoff " +
+                                "AND t.deleted = false " +
+                                "AND t.organization_id = :organization_id AND t.tenant_id = :tenant_id " +
+                                "GROUP BY d.mac, d.tap_uuid, t.name HAVING COUNT(*) >= 2")
+                .bind("signature", signature)
+                .bind("cutoff", DateTime.now().minusMinutes(lookbackMinutes))
+                .bind("organization_id", organizationId)
+                .bind("tenant_id", tenantId)
+                .mapTo(MonitoredBluetoothSignatureSighting.class)
+                .list());
     }
 
 }

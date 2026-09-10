@@ -1,12 +1,16 @@
 package app.nzyme.core.tables.bluetooth;
 
 import app.nzyme.core.bluetooth.db.BluetoothServiceUuidJson;
+import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignature;
 import app.nzyme.core.bluetooth.sig.AppleManufacturerData;
+import app.nzyme.core.detection.alerts.DetectionType;
 import app.nzyme.core.rest.resources.taps.reports.tables.bluetooth.BluetoothDeviceReport;
 import app.nzyme.core.rest.resources.taps.reports.tables.bluetooth.BluetoothDevicesReport;
 import app.nzyme.core.tables.DataTable;
 import app.nzyme.core.tables.TablesService;
+import app.nzyme.core.taps.Tap;
 import app.nzyme.core.util.MetricNames;
+import app.nzyme.plugin.Subsystem;
 import com.codahale.metrics.Timer;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -21,6 +25,7 @@ import org.joda.time.DateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.security.MessageDigest;
@@ -53,6 +58,20 @@ public class BluetoothTable implements DataTable {
     }
 
     private void writeDevices(Handle handle, UUID tapUuid, List<BluetoothDeviceReport> devices) {
+        // Preload monitored signatures for this tap's tenant. Plan C3: PRESENT alerts are raised
+        // event-driven when a device with a monitored signature reports in.
+        Optional<Tap> tapOptional = tablesService.getNzyme().getTapManager().findTap(tapUuid);
+        Map<String, MonitoredBluetoothSignature> monitoredSignatures = Maps.newHashMap();
+        if (tapOptional.isPresent()) {
+            for (MonitoredBluetoothSignature monitored : tablesService.getNzyme().getBluetooth()
+                    .findAllMonitoredSignatures(
+                            tapOptional.get().organizationId(),
+                            tapOptional.get().tenantId()
+                    )) {
+                monitoredSignatures.put(monitored.signature(), monitored);
+            }
+        }
+
         PreparedBatch batch = handle.prepareBatch("INSERT INTO bluetooth_devices(uuid, tap_uuid, mac, oui, " +
                 "alias, device, transport, name, rssi, company_id, class_number, appearance, modalias, tx_power, " +
                 "manufacturer_data, manufacturer_name, uuids, service_data, tags, signature, address_type, " +
@@ -143,6 +162,37 @@ public class BluetoothTable implements DataTable {
                 tags = null;
             }
 
+            String signature = computeSignature(device.companyId(), device.uuids(), device.name());
+
+            // Monitored device present? (Plan C3)
+            if (signature != null && tapOptional.isPresent()) {
+                MonitoredBluetoothSignature monitored = monitoredSignatures.get(signature);
+                if (monitored != null) {
+                    Tap tap = tapOptional.get();
+
+                    Map<String, String> attributes = Maps.newHashMap();
+                    attributes.put("signature", signature);
+                    attributes.put("monitored_signature_name", monitored.name());
+                    attributes.put("mac", device.mac());
+                    attributes.put("rssi", String.valueOf(device.rssi()));
+                    attributes.put("tap_id", tap.uuid().toString());
+                    attributes.put("tap_name", tap.name());
+
+                    tablesService.getNzyme().getDetectionAlertService().raiseAlert(
+                            tap.organizationId(),
+                            tap.tenantId(),
+                            monitored.uuid(),
+                            tap.uuid(),
+                            DetectionType.BLUETOOTH_MONITORED_DEVICE_PRESENT,
+                            Subsystem.BLUETOOTH,
+                            "Monitored Bluetooth device \"" + monitored.name() + "\" is present. " +
+                                    "(Tap: \"" + tap.name() + "\")",
+                            attributes,
+                            Set.of("signature")
+                    );
+                }
+            }
+
             batch
                     .bind("uuid", UUID.randomUUID())
                     .bind("tap_uuid", tapUuid)
@@ -163,7 +213,7 @@ public class BluetoothTable implements DataTable {
                     .bind("uuids", uuids)
                     .bind("service_data", serviceData)
                     .bind("tags", tags)
-                    .bind("signature", computeSignature(device.companyId(), device.uuids(), device.name()))
+                    .bind("signature", signature)
                     .bind("address_type", device.addressType())
                     .bind("last_seen", device.lastSeen())
                     .add();

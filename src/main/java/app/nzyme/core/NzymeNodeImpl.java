@@ -23,6 +23,7 @@ import app.nzyme.core.assets.AssetStatisticsCleaner;
 import app.nzyme.core.bluetooth.Bluetooth;
 import app.nzyme.core.bluetooth.sig.BluetoothSigService;
 import app.nzyme.core.cache.CacheManager;
+import app.nzyme.core.bluetooth.monitoring.MonitoredBluetoothDeviceMonitor;
 import app.nzyme.core.connect.ConnectService;
 import app.nzyme.core.context.ContextService;
 import app.nzyme.core.database.tasks.handlers.GlobalPurgeCategoryTaskHandler;
@@ -328,6 +329,7 @@ public class NzymeNodeImpl implements NzymeNode {
         periodicalManager.scheduleAtFixedRate(new L4ConnectionCleaner(this), 0, 1, TimeUnit.MINUTES);
         periodicalManager.scheduleAtFixedRate(new Dot11SignalTrackMonitor(this), 1, 1, TimeUnit.MINUTES);
         periodicalManager.scheduleAtFixedRate(new Dot11DiscoMonitor(this), 1, 1, TimeUnit.MINUTES);
+        periodicalManager.scheduleAtFixedRate(new MonitoredBluetoothDeviceMonitor(this), 1, 1, TimeUnit.MINUTES);
         periodicalManager.scheduleAtFixedRate(new ContextCleaner(getContextService()), 0, 1, TimeUnit.MINUTES);
         periodicalManager.scheduleAtFixedRate(new KnownSSIDMonitor(this), 1, 1, TimeUnit.MINUTES);
         periodicalManager.scheduleAtFixedRate(new KnownClientMonitor(this), 1, 1, TimeUnit.MINUTES);

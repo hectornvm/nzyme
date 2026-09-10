@@ -12,6 +12,7 @@ import app.nzyme.core.rest.resources.*;
 import app.nzyme.core.rest.resources.alerts.AlertsResource;
 import app.nzyme.core.rest.resources.assets.WebInterfaceAssetsResource;
 import app.nzyme.core.rest.resources.bluetooth.BluetoothDevicesResource;
+import app.nzyme.core.rest.resources.bluetooth.BluetoothMonitoredSignaturesResource;
 import app.nzyme.core.rest.resources.context.AssetContextResource;
 import app.nzyme.core.rest.resources.dot11.*;
 import app.nzyme.core.rest.resources.dot11.BanditsResource;
@@ -168,6 +169,7 @@ public class NzymeHttpServer {
         resourceConfig.register(SSHResource.class);
         resourceConfig.register(ConnectResource.class);
         resourceConfig.register(BluetoothDevicesResource.class);
+        resourceConfig.register(BluetoothMonitoredSignaturesResource.class);
         resourceConfig.register(Dot11MonitoredProbeRequestResource.class);
         resourceConfig.register(Dot11MonitoredSSIDsResource.class);
         resourceConfig.register(UavResource.class);

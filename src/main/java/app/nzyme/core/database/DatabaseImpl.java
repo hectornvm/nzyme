@@ -6,6 +6,7 @@ import app.nzyme.core.assets.db.AssetIpAddressEntryMapper;
 import app.nzyme.core.bluetooth.db.BluetoothDeviceEntryMapper;
 import app.nzyme.core.bluetooth.db.BluetoothDeviceSummaryMapper;
 import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignatureMapper;
+import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignatureSightingMapper;
 import app.nzyme.core.configuration.node.NodeConfiguration;
 import app.nzyme.core.context.db.MacAddressContextEntryMapper;
 import app.nzyme.core.context.db.MacAddressTransparentContextEntryMapper;
@@ -185,6 +186,7 @@ public class DatabaseImpl implements Database {
                 .registerRowMapper(new BluetoothDeviceEntryMapper())
                 .registerRowMapper(new BluetoothDeviceSummaryMapper())
                 .registerRowMapper(new MonitoredBluetoothSignatureMapper())
+                .registerRowMapper(new MonitoredBluetoothSignatureSightingMapper())
                 .registerRowMapper(new GenericIntegerHistogramEntryMapper())
                 .registerRowMapper(new MonitoredProbeRequestEntryMapper())
                 .registerRowMapper(new MacAddressTransparentContextEntryMapper())
