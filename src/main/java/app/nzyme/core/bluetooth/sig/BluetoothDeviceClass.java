@@ -86,24 +86,29 @@ public class BluetoothDeviceClass {
                     default: return null;
                 }
             case "Audio/Video (AV)":
+                /*
+                 * Minor class 3 is Reserved in the Bluetooth assigned numbers; entries 4+ were
+                 * previously shifted by one. Verified against live data: minor 15 is advertised
+                 * by TVs (LG webOS, Samsung) => "Video Display and Loudspeaker".
+                 */
                 switch (minorDeviceClass) {
                     case 0: return "Uncategorized";
                     case 1: return "Wearable Headset Device";
                     case 2: return "Hands-free Device";
-                    case 3: return "Microphone";
-                    case 4: return "Loudspeaker";
-                    case 5: return "Headphones";
-                    case 6: return "Portable Audio";
-                    case 7: return "Car audio";
-                    case 8: return "Set-top box";
-                    case 9: return "HiFi Audio Device";
-                    case 10: return "VCR";
-                    case 11: return "Video Camera";
-                    case 12: return "Camcorder";
-                    case 13: return "Video Monitor";
-                    case 14: return "Video Display and Loudspeaker";
-                    case 15: return "Video Conferencing";
-                    case 16: return "Gaming/Toy";
+                    case 4: return "Microphone";
+                    case 5: return "Loudspeaker";
+                    case 6: return "Headphones";
+                    case 7: return "Portable Audio";
+                    case 8: return "Car audio";
+                    case 9: return "Set-top box";
+                    case 10: return "HiFi Audio Device";
+                    case 11: return "VCR";
+                    case 12: return "Video Camera";
+                    case 13: return "Camcorder";
+                    case 14: return "Video Monitor";
+                    case 15: return "Video Display and Loudspeaker";
+                    case 16: return "Video Conferencing";
+                    case 18: return "Gaming/Toy";
                     default: return null;
                 }
             case "Peripheral":

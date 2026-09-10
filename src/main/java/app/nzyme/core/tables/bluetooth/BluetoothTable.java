@@ -1,6 +1,7 @@
 package app.nzyme.core.tables.bluetooth;
 
 import app.nzyme.core.bluetooth.db.BluetoothServiceUuidJson;
+import app.nzyme.core.bluetooth.classification.BluetoothDeviceClassifier;
 import app.nzyme.core.bluetooth.db.MonitoredBluetoothSignature;
 import app.nzyme.core.bluetooth.sig.AppleManufacturerData;
 import app.nzyme.core.detection.alerts.DetectionType;
@@ -147,6 +148,23 @@ public class BluetoothTable implements DataTable {
                     attrs.put("label", apple.get().label());
                     mergedTags.put("apple_advertising", attrs);
                 }
+            }
+
+            // Passive device-type classification (Plan H Pillar 2): Class of Device, advertised
+            // service UUIDs and appearance. Complements the tap's dedicated tracker taggers.
+            Optional<BluetoothDeviceClassifier.Classification> deviceType = BluetoothDeviceClassifier.classify(
+                    device.classNumber(),
+                    device.appearance(),
+                    serviceUuids.stream().map(BluetoothServiceUuidJson::uuid).toList(),
+                    mergedTags
+            );
+            if (deviceType.isPresent()) {
+                mergedTags = Maps.newHashMap(mergedTags == null ? Maps.newHashMap() : mergedTags);
+                Map<String, Object> typeAttributes = Maps.newHashMap();
+                typeAttributes.put("type", deviceType.get().type());
+                typeAttributes.put("label", deviceType.get().label());
+                typeAttributes.put("source", deviceType.get().source());
+                mergedTags.put("device_type", typeAttributes);
             }
 
             String tags;
