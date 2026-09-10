@@ -36,6 +36,7 @@ impl BluetoothTable {
             name: advertisement.name.clone(),
             rssi: advertisement.rssi,
             company_id: advertisement.company_id,
+            address_type: advertisement.address_type.clone(),
             alias: advertisement.alias.clone(),
             class: advertisement.class,
             appearance: advertisement.appearance,

@@ -17,6 +17,7 @@ pub struct BluetoothDeviceReport {
     pub name: Option<String>,
     pub rssi: Option<i16>,
     pub company_id: Option<u16>,
+    pub address_type: Option<String>,
     pub alias: String,
     pub class: Option<u32>,
     pub appearance: Option<u32>,
@@ -24,7 +25,10 @@ pub struct BluetoothDeviceReport {
     pub tx_power: Option<i16>,
     pub manufacturer_data: Option<String>, // Base64
     pub uuids: Option<Vec<String>>,
+    // UUIDs that had service data (legacy field, kept for backward compatibility).
     pub service_data: Option<Vec<String>>,
+    // Service UUID -> Base64 payload bytes (Plan H Pillar 2b).
+    pub service_data_payloads: Option<HashMap<String, String>>,
     pub device: String,
     pub transport: String,
     pub tags: Option<HashMap<String, HashMap<String, TagValue>>>,
@@ -53,6 +57,7 @@ pub fn generate_report(d: &MutexGuard<HashMap<String, BluetoothDevice>>) -> Blue
             name: device.name.clone(),
             rssi: device.rssi,
             company_id: device.company_id,
+            address_type: device.address_type.clone(),
             alias: device.alias.clone(),
             class: device.class,
             appearance: device.appearance,
@@ -62,7 +67,16 @@ pub fn generate_report(d: &MutexGuard<HashMap<String, BluetoothDevice>>) -> Blue
                 base64::engine::general_purpose::STANDARD.encode(m)
             ),
             uuids: device.uuids.clone(),
-            service_data: device.service_data.clone(),
+            service_data: device.service_data.as_ref().map(|m| {
+                let mut uuids: Vec<String> = m.keys().cloned().collect();
+                uuids.sort();
+                uuids
+            }),
+            service_data_payloads: device.service_data.as_ref().map(|m| {
+                m.iter().map(|(uuid, data)|
+                    (uuid.clone(), base64::engine::general_purpose::STANDARD.encode(data))
+                ).collect()
+            }),
             device: device.device.clone(),
             tags: device.tags.clone(),
             transport: device.transport.clone(),

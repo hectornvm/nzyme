@@ -146,10 +146,11 @@ impl Capture {
                     let tx_power = Self::parse_optional_i16_prop(props, "TxPower");
                     let name = Self::parse_optional_string_prop(props, "Name");
                     let class = Self::parse_optional_u32_prop(props, "Class");
+                    let address_type = Self::parse_optional_string_prop(props, "AddressType");
                     let appearance = Self::parse_optional_u32_prop(props, "Appearance");
                     let modalias = Self::parse_optional_string_prop(props, "Modalias");
                     let uuids = Self::parse_optional_string_vector(props, "UUIDs");
-                    let service_data = Self::parse_optional_string_vector(props, "ServiceData");
+                    let service_data = Self::parse_service_data(props);
 
                     // Manufacturer data incl. company ID.
                     let (company_id, manufacturer_data) = if let Some(v) = props.get("ManufacturerData") {
@@ -163,6 +164,7 @@ impl Capture {
                         name,
                         rssi,
                         company_id,
+                        address_type,
                         alias,
                         class,
                         appearance,
@@ -303,6 +305,68 @@ impl Capture {
             }
         } else {
             None
+        }
+    }
+
+    /*
+     * BlueZ ServiceData is a{sv}: a dict of service UUID -> byte array. The previous
+     * implementation only kept the UUID keys; keep the payload bytes too so the node can
+     * decode tracker prefixes / Fast Pair model IDs (Plan H Pillar 2b).
+     */
+    fn parse_service_data(props: &HashMap<String, Variant<Box<dyn RefArg>>>)
+        -> Option<HashMap<String, Vec<u8>>> {
+
+        let service_data = match props.get("ServiceData") {
+            Some(v) => v,
+            None => return None
+        };
+
+        let mut iterator = match service_data.0.as_iter() {
+            Some(iter) => iter,
+            None => return None
+        };
+
+        let mut data: HashMap<String, Vec<u8>> = HashMap::new();
+
+        // Dict iterators yield alternating key/value elements.
+        while let Some(key) = iterator.next() {
+            let value = match iterator.next() {
+                Some(v) => v,
+                None => break
+            };
+
+            let uuid = match key.as_str() {
+                Some(uuid) => uuid.to_string(),
+                None => {
+                    debug!("Invalid Bluetooth advertisement, ServiceData key is not a string: {:?}",
+                        key);
+                    continue;
+                }
+            };
+
+            let bytes = value.as_iter().and_then(|mut iter| {
+                iter.nth(0)?.as_iter().map(|iter| {
+                    iter.filter_map(|val| val.as_u64().map(|v| v as u8)).collect::<Vec<u8>>()
+                })
+            });
+
+            match bytes {
+                Some(bytes) => {
+                    if !bytes.is_empty() {
+                        data.insert(uuid, bytes);
+                    }
+                },
+                None => {
+                    debug!("Invalid Bluetooth advertisement, ServiceData value for [{}] cannot be \
+                    read as byte array: {:?}", uuid, value);
+                }
+            }
+        }
+
+        if data.is_empty() {
+            None
+        } else {
+            Some(data)
         }
     }
 
